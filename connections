@@ -1,0 +1,51 @@
+import mysql.connector as mysql
+import UserCreation as uc
+
+
+
+def CheckUserExistens(user,cur):
+    sql ="SELECT IF( EXISTS(SELECT 1  FROM mysql.user  WHERE user = '{0}' ), TRUE, FALSE);".format(user)
+    cur.execute(sql)
+    result_set = cur.fetchall()
+
+    return (user,bool([UserExistens[0] for UserExistens in result_set][0]))
+
+
+
+
+def publish_to_rds(db_property):
+
+    con = mysql.connect(user=db_property['user'],
+                        host=db_property['host'],
+                        password=db_property['password'])
+    try:
+        cur = con.cursor()
+
+        for user_list in uc.CreateUserList():
+            user,exist=CheckUserExistens(user_list["user"],cur)
+
+            if (exist):
+
+                pass
+                ## User exists Drop?
+            else:
+                print ("create user for {0}".format(user_list["user"]))
+                result = cur.execute((user_list["cmd"]), multi=True)
+                [cur.fetchall() for cur in result if cur.with_rows]
+
+
+        con.commit()
+
+    except mysql.Error as err:
+        print(err)
+
+    con.close()
+
+
+
+
+
+
+
+
+
