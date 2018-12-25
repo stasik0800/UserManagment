@@ -1,0 +1,35 @@
+#Hold configuration as built in data structures
+
+database_configuration =  {
+
+    #############################
+    ####   Dev Environment   ####
+    #############################
+
+    'walkme-general': {
+       'host'     :  'host,
+       'user'     :  'password',
+       'password' :  'password'
+    },
+
+    'walkme-audit'  : {
+        'host'    : 'host',
+        'user'    : 'password',
+        'password': 'password
+    }
+
+
+    ################################
+    ####  END Dev Environment   ####
+    ################################
+
+
+
+}
+
+
+
+
+
+
+
