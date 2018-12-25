@@ -1,0 +1,23 @@
+import connections as conn
+import dev
+
+
+def main():
+    db_config = qa.database_configuration
+
+
+    for envoroment in sorted(db_config):
+        print ("Publishing in  ---- {0} ---- ".format(envoroment))
+        conn.publish_to_rds(db_config.get(envoroment))
+
+
+
+
+
+if __name__ == "__main__":
+
+     main()
+
+
+else:
+    print('Run Main File')
