@@ -1,0 +1,53 @@
+import pandas as pd
+
+
+def UserCreation(userLogin):
+
+    sql = """CREATE USER '{0}' IDENTIFIED WITH AWSAuthenticationPlugin as 'RDS';
+            GRANT USAGE ON *.* TO '{0}'@'%'REQUIRE SSL;
+            GRANT SELECT, INSERT, UPDATE, DELETE, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, EVENT 
+            ON `%`.* TO '{0}'@'%';""".format(userLogin)
+    return sql.decode('utf-8')
+
+
+
+def CreateUserList():
+    userList = pd.ExcelFile('/home/stas.r/Downloads/DevList.xlsx')
+    sheet = ''.join(userList.sheet_names)
+    df = userList.parse(sheet)
+
+    user_creation_format = []
+    for user in df['SamAccountName']:
+        user = str(user).strip()
+        case = {"user": user, "cmd": UserCreation(user).replace("\n","")}
+        user_creation_format.append(case)
+
+    return user_creation_format
+
+
+def DeleteUserList():
+    userList = pd.ExcelFile('/home/stas.r/Downloads/DevList.xlsx')
+    sheet = ''.join(userList.sheet_names)
+    df = userList.parse(sheet)
+
+    user_creation_format = []
+    for user in df['SamAccountName']:
+        user = str(user).strip()
+        case = {"user": user, "cmd": UserDeletion(user).replace("\n","")}
+        user_creation_format.append(case)
+
+    return user_creation_format
+
+
+def IndividualUser(userLogin):
+    case = {"user": userLogin, "cmd": UserCreation(userLogin).replace("\n", "")}
+    return case
+
+
+def UserDeletion(userLogin):
+    sql = """DROP USER '{0}'""".format(userLogin)
+    return sql.decode('utf-8')
+
+
+
+
