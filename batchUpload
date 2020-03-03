@@ -1,0 +1,126 @@
+import configparser
+import mysql.connector as mysql
+import sys
+import boto3
+from datetime import datetime
+
+
+
+def return_config(key,value):
+    config=configparser.ConfigParser(allow_no_value=True)
+    config.read('/home/stas.r/PycharmProjects/Walkme/SchemaMigration/t.ini')
+    return config[key][value]
+
+
+def open_mysql_conn():
+    try:
+        conn = mysql.connect(user=return_config('db','user'),
+                             host=return_config('db','host'),
+                             password=return_config('db','password'))
+        return conn
+
+    except Exception as e:
+        print 'Error on line {}'.format(sys.exc_info()[-1].tb_lineno), e
+
+
+def open_dynamodb_conn():
+    try:
+        dy_conn = boto3.client('dynamodb',
+                               region_name=return_config('aws','region'),
+                               aws_access_key_id=return_config('aws','aws_access_key_id'),
+                               aws_secret_access_key=return_config('aws','aws_secret_access_key'))
+        return dy_conn
+
+    except Exception as e:
+        print 'Error on line {}'.format(sys.exc_info()[-1].tb_lineno), e
+
+
+
+
+
+def dynamodb_build_data_schema(data):
+    Keys = {
+            "user": {"S": str(data[0])+"_"+data[2]},
+            "env":  {"N": str(data[1])}
+            }
+
+    AttributeUpdates = {
+            data[3]: {"Value": { "M": {
+                                                 "expiry":           {"S": str(data[6])},
+                                                 "last_update_date": {"S": str(data[5])},
+                                                 "max_expiry":       {"S": str(data[7])},
+                                                 "value":            {"S": str(data[4])},
+                                                 "is_deleted":       {"S": str(data[8])}
+                                      }
+                              }
+                    }
+    }
+    return Keys,AttributeUpdates
+
+
+
+def move_data_to_dynamodb(data,dy_conn,tableName):
+    #data module built on dynamodb_build_data (fn)
+    if data:
+        keys, AttributeUpdates = dynamodb_build_data_schema(data)
+        dy_conn.update_item(TableName=tableName,Key=keys,AttributeUpdates=AttributeUpdates)
+
+    else:
+        print('No data')
+
+
+
+def mysql_data(conn,sql):
+    cur = conn.cursor()
+    cur.execute(sql)
+    data = cur.fetchall()
+    rowcnt = cur.rowcount
+
+
+    return data,rowcnt
+
+
+
+def main():
+    mysql_conn = open_mysql_conn()
+    dynamodb_conn = open_dynamodb_conn()
+
+    sql_max_id = "select max(id) from walkme.end_users_storage"
+
+    #Batch config
+    max_id = mysql_data(mysql_conn,sql_max_id)[0][0]
+    min_id = 1
+    batch_size = 20
+
+    sql_eus_batch = """
+        select walkme_user, env, end_user, `key`, `value`, last_update_date, expiry, max_expiry, is_deleted 
+        from walkme.end_users_storage 
+        where id > {} and id<={}
+    """.format(min_id, batch_size)
+
+
+    while max_id > min_id:
+
+        Start = datetime.now()
+        sql_eus_batch.format(min_id, batch_size)
+
+        data,rowcount = mysql_data(mysql_conn, sql_eus_batch)
+
+        for row in data:
+
+            move_data_to_dynamodb(row, dynamodb_conn, tableName='eus_ex_py')
+
+        min_id = batch_size + min_id
+
+        End = datetime.now()
+
+
+        #Logger
+        print "Load Time: " + str(End - Start) + \
+              " | Rows: " + str(rowcount) + \
+              " | Batch: id between {} and {}".format(min_id,batch_size) + str(sql_eus_batch)
+
+
+
+
+main()
